@@ -5,44 +5,84 @@
     <meta charset="UTF-8">
     <title>Solfeggio Frequencies＋Schumann Resonance</title>
     <meta name="robots" content="noindex">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
             padding: 20px;
             user-select: none;
+            margin: 0;
+        }
+
+        h2 {
+            font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+            text-align: center;
+        }
+
+        label,
+        select,
+        input,
+        button {
+            margin-top: 10px;
+            display: block;
+            font-size: 1rem;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            border-radius: 6px;
+            border: none;
+            background-color: #2c3e50;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #34495e;
         }
 
         canvas {
             border: 1px solid #ccc;
             background-color: #1a1a1a;
-            /* 暗色底圖 */
             margin-top: 20px;
             cursor: crosshair;
-        }
-
-        label,
-        select,
-        input {
-            margin-top: 10px;
+            width: 100%;
+            max-width: 100%;
+            height: auto;
             display: block;
-        }
-
-        button {
-            margin-top: 10px;
-            padding: 8px 20px;
         }
 
         #info {
             margin-top: 10px;
-            font-size: 14px;
+            font-size: clamp(0.8rem, 2vw, 1rem);
         }
 
         #visitorCount {
             margin-top: 20px;
-            font-size: 16px;
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
             color: #2c3e50;
             font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            label {
+                font-size: 0.9rem;
+            }
+            select,
+            input[type="range"] {
+                width: 100%;
+                font-size: 1rem;
+            }
+            button {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -51,56 +91,58 @@
     <h2>🎧 Solfeggio Frequencies＋Schumann Resonance</h2>
 
     <label>Solfeggio Frequencies（Hz）：
-        <select id="mainFreq">
-            <option value="396">396 Hz</option>
-            <option value="417">417 Hz</option>
-            <option value="528" selected>528 Hz</option>
-            <option value="639">639 Hz</option>
-            <option value="741">741 Hz</option>
-            <option value="852">852 Hz</option>
-            <option value="963">963 Hz</option>
-        </select>
-    </label>
+    <select id="mainFreq">
+      <option value="396">396 Hz</option>
+      <option value="417">417 Hz</option>
+      <option value="528" selected>528 Hz</option>
+      <option value="639">639 Hz</option>
+      <option value="741">741 Hz</option>
+      <option value="852">852 Hz</option>
+      <option value="963">963 Hz</option>
+    </select>
+  </label>
 
     <label>Schumann Resonance（Hz）：
-        <select id="modFreq">
-            <option value="7.83" selected>7.83 Hz</option>
-            <option value="10">10 Hz</option>
-        </select>
-    </label>
+    <select id="modFreq">
+      <option value="7.83" selected>7.83 Hz</option>
+      <option value="10">10 Hz</option>
+    </select>
+  </label>
 
     <label>Volume：
-        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
-    </label>
+    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
+  </label>
 
     <button onclick="startAudio()">Play</button>
     <button onclick="stopAudio()">Stop</button>
 
-    <canvas id="oscilloscope" width="800" height="300"></canvas>
+    <canvas id="oscilloscope"></canvas>
     <div id="info">Frequency: -- Hz, Amplitude: --%</div>
+    <div id="visitorCount"></div>
 
     <script>
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.onkeydown = function(e) {
-            if (e.key === 'F12' || e.key === 'I' && e.ctrlKey || e.key === 'C' && e.ctrlKey || e.key === 'U' && e.ctrlKey) {
-                event.preventDefault();
-                return false;
-            }
-        };
+        document.addEventListener('contextmenu', e => e.preventDefault());
 
-        let audioCtx, mainOsc, modOsc, modGain, gainNode, analyser, frequencyData, canvasCtx, animationId;
+        let audioCtx, mainOsc, modOsc, modGain, gainNode, analyser, frequencyData, animationId;
         const canvas = document.getElementById("oscilloscope");
         const info = document.getElementById("info");
-        canvasCtx = canvas.getContext("2d");
+        let canvasCtx = canvas.getContext("2d");
 
-        let timePerSample = 0;
+        // 🔹 canvas RWD
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = Math.max(200, canvas.clientWidth * 0.4);
+            canvasCtx = canvas.getContext("2d");
+        }
+        window.addEventListener("resize", resizeCanvas);
+        window.addEventListener("load", resizeCanvas);
 
+        // 🔹 訪客計數
         function updateVisitorCount() {
             const deviceFingerprint = navigator.userAgent;
             let count = localStorage.getItem('visitorCount') || 0;
             const lastVisit = localStorage.getItem('lastVisit_' + deviceFingerprint);
             const now = Date.now();
-
             if (!lastVisit || (now - parseInt(lastVisit) > 86400000)) {
                 count = parseInt(count) + 1;
                 localStorage.setItem('visitorCount', count);
@@ -108,9 +150,9 @@
             }
             document.getElementById("visitorCount").textContent = `Visit：${count} 人`;
         }
-
         window.addEventListener('load', updateVisitorCount);
 
+        // 🔹 啟動音頻
         function startAudio() {
             stopAudio();
             try {
@@ -128,7 +170,7 @@
                 modOsc.frequency.value = modFreq;
 
                 modGain = audioCtx.createGain();
-                modGain.gain.value = 10; // 調整為適中值，避免失真
+                modGain.gain.value = 10;
 
                 modOsc.connect(modGain);
                 modGain.connect(mainOsc.frequency);
@@ -137,7 +179,7 @@
                 gainNode.gain.value = volume;
 
                 analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 4096; // 提高分辨率
+                analyser.fftSize = 4096;
                 const bufferLength = analyser.frequencyBinCount;
                 frequencyData = new Uint8Array(bufferLength);
 
@@ -145,7 +187,6 @@
                 gainNode.connect(analyser);
                 analyser.connect(audioCtx.destination);
 
-                // 確保音頻在用戶互動後啟動
                 mainOsc.start();
                 modOsc.start();
 
@@ -153,29 +194,24 @@
                     animationId = requestAnimationFrame(draw);
                     analyser.getByteFrequencyData(frequencyData);
 
-                    // 清除畫布 (暗色背景)
-                    canvasCtx.fillStyle = "#1a1a1a"; // 暗色底圖
+                    canvasCtx.fillStyle = "#1a1a1a";
                     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
-                    // 定義頻率範圍和 bin 數
                     const sampleRate = audioCtx.sampleRate;
                     const freqPerBin = sampleRate / analyser.fftSize;
-                    const maxFreq = 1500; // 涵蓋主頻率和副頻率影響
+                    const maxFreq = 1500;
                     const binsToDisplay = Math.min(Math.floor(maxFreq / freqPerBin), bufferLength);
 
-                    // 繪製彩色頻譜 (線性繪製)
                     canvasCtx.beginPath();
-
                     for (let i = 0; i < binsToDisplay; i++) {
                         const baseAmplitude = frequencyData[i] / 255;
                         const adjustedAmplitude = baseAmplitude * volume;
                         const x = (i / binsToDisplay) * canvas.width;
                         const y = canvas.height - (adjustedAmplitude * canvas.height);
 
-                        // 根據頻率設置色相 (hue)，根據振幅設置亮度 (lightness)
-                        const hue = (i / binsToDisplay) * 360; // 頻率範圍對應 0-360°
-                        const lightness = 30 + (adjustedAmplitude * 60); // 振幅強度影響亮度 (30%-90%)
-                        canvasCtx.strokeStyle = `hsl(${hue}, 70%, ${lightness}%)`; // 固定飽和度 70%
+                        const hue = (i / binsToDisplay) * 360;
+                        const lightness = 30 + (adjustedAmplitude * 60);
+                        canvasCtx.strokeStyle = `hsl(${hue}, 70%, ${lightness}%)`;
 
                         if (i === 0) canvasCtx.moveTo(x, y);
                         else canvasCtx.lineTo(x, y);
@@ -183,14 +219,13 @@
                     canvasCtx.lineWidth = 2;
                     canvasCtx.stroke();
 
-                    // 繪製橫軸和縱軸 (調整為白色以對比暗色背景)
-                    canvasCtx.fillStyle = "#fff"; // 白色文字
+                    canvasCtx.fillStyle = "#fff";
                     canvasCtx.font = "12px Arial";
                     canvasCtx.textAlign = "center";
 
-                    // 橫軸 (Frequency, Hz)
+                    // x 軸
                     canvasCtx.beginPath();
-                    canvasCtx.strokeStyle = "#ccc"; // 淺灰色軸線
+                    canvasCtx.strokeStyle = "#ccc";
                     canvasCtx.moveTo(0, canvas.height - 10);
                     canvasCtx.lineTo(canvas.width, canvas.height - 10);
                     canvasCtx.stroke();
@@ -202,7 +237,7 @@
                         canvasCtx.fillText(`${freq} Hz`, x, canvas.height);
                     });
 
-                    // 縱軸 (Amplitude, %)
+                    // y 軸
                     canvasCtx.beginPath();
                     canvasCtx.moveTo(10, 0);
                     canvasCtx.lineTo(10, canvas.height);
@@ -215,7 +250,7 @@
                         canvasCtx.fillText(`${amp}%`, 0, y + 5);
                     });
 
-                    // 更新滑鼠信息
+                    // 滑鼠資訊
                     canvas.addEventListener("mousemove", function(event) {
                         const rect = canvas.getBoundingClientRect();
                         const x = event.clientX - rect.left;
@@ -228,14 +263,14 @@
                         passive: true
                     });
                 }
-
                 draw();
             } catch (e) {
-                console.error("Audio error:", e); // 調試用，顯示具體錯誤
+                console.error("Audio error:", e);
                 alert("Audio initialization failed, please ensure browser supports Web Audio API.");
             }
         }
 
+        // 🔹 停止音頻
         function stopAudio() {
             if (mainOsc) mainOsc.stop();
             if (modOsc) modOsc.stop();
@@ -246,7 +281,5 @@
         }
     </script>
 </body>
-
-
 
 </html>
